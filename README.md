@@ -5,7 +5,7 @@
   <h1>Creative A/B Test Results Pipeline</h1>
 
   <p>
-    <strong>An anonymised Python, SQL, and BigQuery project for calculating, formatting, uploading, and emailing creative A/B test results.</strong>
+    <strong>An  Python, SQL, and BigQuery project for calculating, formatting, uploading, and emailing creative A/B test results.</strong>
   </p>
 
   <p>
@@ -23,7 +23,7 @@
 
 ## Overview
 
-Creative A/B Test Results Pipeline is an anonymised analytics engineering project that calculates statistical results for creative tests across marketing campaigns.
+Creative A/B Test Results Pipeline is an analytics engineering project that calculates statistical results for creative tests across marketing campaigns.
 
 The project pulls campaign performance data, compares creative variants against a control, calculates key performance metrics, applies statistical significance testing, formats the output for reporting, prevents duplicate uploads, and generates summary emails for stakeholders.
 
