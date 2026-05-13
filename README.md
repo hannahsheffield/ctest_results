@@ -2,7 +2,7 @@
 
 <div align="center">
 
-  <h1>Creative A/B Test Results Pipeline</h1>
+  <h1>Creative A/B Test Results pipeline</h1>
 
   <p>
     <strong>An  Python, SQL, and BigQuery project for calculating, formatting, uploading, and emailing creative A/B test results.</strong>
