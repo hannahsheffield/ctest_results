@@ -1,0 +1,174 @@
+import re
+import numpy as np
+
+from modules import config, bigquery_functions, abtest
+from modules.bigquery_upload import upload_dataframe_to_bigquery
+
+
+class ProductionABTest(abtest.ABTest):
+    def __init__(self, name, channel_name, start_date, end_date):
+        super().__init__(name, channel_name, start_date, end_date)
+
+    def format_results(self, schedule, results):
+
+        if "campaign_name" not in results.columns:
+            campaign_name = schedule["campaign_name"].iloc[0]
+            results["campaign_name"] = campaign_name
+        
+        schedule_subset = (
+            schedule
+            .loc[:, [
+                "campaign_name",
+                "test_id",
+                "test_type",
+                "country_code",
+                "test_metric"
+            ]]
+            .drop_duplicates()
+        )
+
+        schedule_subset_results = schedule_subset.merge(
+            results,
+            on=["campaign_name"],
+            how="left"
+        )
+
+        schedule_subset_results = (
+            ProductionABTest
+            .drop_unnecessary_columns(schedule_subset_results)
+        )
+
+        schedule_subset_results = (
+            ProductionABTest
+            .create_additional_columns(schedule_subset_results)
+        )
+        
+        schedule_subset_results = (
+            ProductionABTest
+            .rename_columns(schedule_subset_results)
+        )
+
+        schedule_subset_results = (
+            ProductionABTest
+            .sort_columns(schedule_subset_results)
+        )
+
+        schedule_subset_results = (
+            schedule_subset_results.convert_dtypes()
+        )
+
+        return schedule_subset_results
+
+    @staticmethod
+    def drop_unnecessary_columns(results):
+        results = results.drop(
+            columns=[
+                "creative_link",
+                "creative_name",
+                "day_2_retention",
+                "iti_error",
+                "z_score",
+                "p_value",
+                "standard_error",
+                "ci_lower",
+                "ci_upper",
+            ],
+            errors="ignore"
+        )
+
+        return results
+
+    @staticmethod
+    def create_additional_columns(results):
+        results["is_control"] = np.where(
+            results["result"].str.contains("Control"),
+            True,
+            False
+        )
+
+        results["target_demographic"] = "Broad"
+
+        results["creative_preview_link"] = (
+            "Preview link not available in portfolio version"
+        )
+
+        results["video_plays"] = np.nan
+        results["video_plays_25"] = np.nan
+        results["video_plays_50"] = np.nan
+        results["video_plays_75"] = np.nan
+        results["video_plays_100"] = np.nan
+
+        return results
+
+    @staticmethod
+    def rename_columns(results):
+        columns_renaming = {
+            "creative_concept_name": "creative_name",
+            "country_code": "countries",
+            "test_metric": "test_kpi",
+            "ci_lower_pct": (
+                "result_difference_lower_confidence_interval"
+            ),
+            "ci_upper_pct": (
+                "result_difference_upper_confidence_interval"
+            ),
+        }
+
+        results = results.rename(columns=columns_renaming)
+
+        return results
+    
+    @staticmethod
+    def sort_columns(results):
+        results = results.loc[:, config.LIVE_RESULTS_COLUMNS]
+
+        return results
+
+    def upload_results_to_bq(self, results, results_table):
+        existing_results = self.get_existing_results(results_table)
+
+        if existing_results.empty:
+            ProductionABTest.upload_data_to_bq(
+                results,
+                results_table
+            )
+
+        else:
+            ProductionABTest.handle_existing_results(
+                existing_results,
+                results
+            )
+    
+    def get_existing_results(self, results_table):
+        existing_results = bigquery_functions.run_query(
+            "GET_TEST_RESULTS.sql",
+            {
+                "PARAM-RESULTS-TABLE": results_table,
+                "PARAM-CAMPAIGN-NAME": self.name
+            }
+        )
+
+        return existing_results
+
+    @staticmethod
+    def upload_data_to_bq(data, table):
+        upload_dataframe_to_bigquery(
+            dataframe=data,
+            table_id=table,
+            project_id=config.BQ_BILLING_PROJECT_ID
+        )
+
+        print("Data successfully uploaded.")
+    
+    @staticmethod
+    def handle_existing_results(existing_results, new_results):
+        print("Results for this test already exist:")
+        print("Existing results:")
+        display(existing_results)
+
+        print("New results:")
+        display(new_results)
+
+        print(
+            "Check the data and remove existing results if needed."
+        )
