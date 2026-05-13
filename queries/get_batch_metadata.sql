@@ -1,0 +1,8 @@
+SELECT
+  DISTINCT
+  start_date,
+  end_date
+FROM
+    `PARAM-SCHEDULE-TABLE`
+WHERE
+  ctest_number = PARAM-CTESTS-BATCH-NUMBER
